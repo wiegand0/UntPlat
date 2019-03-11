@@ -3,7 +3,6 @@ package com.example.untplat;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.graphics.Point;
 
 //this class is intended to hold all of the objects which the player can interact with

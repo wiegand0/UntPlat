@@ -80,6 +80,7 @@ public class Player {
             location.x += velx;
 
         //-------//vertical//-------//
+        //if colliding stop vertical movement
         if(collTop) {
             vely = 0;
             goaly = 0;
@@ -130,9 +131,11 @@ public class Player {
     public void collides(Rect obj) {
         boolean intHor = !(location.x > obj.right || location.x + rect.right < obj.left);
 
+        //detect horizontal collision, only occurs between upper and lower bounds of object
         if(intHor && location.y + rect.bottom < obj.bottom && location.y > obj.top) {
             collHorz = true;
             //detect left or right collision
+            //then prevent movement in that direction
             if(location.x <= obj.left) {
                 if(goalx > 0)
                     goalx = 0;
@@ -146,21 +149,19 @@ public class Player {
         else
             collHorz = false;
 
+        //detect vertical collision, only occurs in left and right bounds, but not when colliding horizontally
         if(location.y <= obj.bottom && location.y >= obj.top && intHor && !collHorz) {
             collTop = true;
             location.y = obj.bottom;
         }
         else
             collTop = false;
-
+        //same idea as top collision, but with the bottom
         if(location.y + rect.bottom >= obj.top && location.y + rect.bottom <= obj.bottom && intHor && !collHorz) {
             collBottom = true;
             location.y = obj.top - rect.bottom;
         }
         else
             collBottom = false;
-
-        Log.d("TEST", ": " + (location.x > obj.right || location.x + rect.right < obj.left));
-        Log.d("COLL", "bot: " + collBottom + " top: " + collTop + " horz: " + collHorz);
     }
 }
