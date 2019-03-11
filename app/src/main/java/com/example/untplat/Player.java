@@ -86,11 +86,6 @@ public class Player {
             goaly = 0;
         }
 
-        if(collBottom) {
-            vely = 0;
-            goaly = 0;
-        }
-
         //vertical interpolation
         vely = interp(goaly, vely, 6f);
         if(vely == goaly) {
