@@ -1,14 +1,14 @@
 package com.example.untplat;
 
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
-import android.util.DisplayMetrics;
-import android.view.Display;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -22,6 +22,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private PlayField level;
     //the player
     private Player user;
+    //to discern touch time
+    private long touchMs, releaseMs;
+    //temporary rect to make collisions
+    private Rect OBJ;
 
     public GameView (Context context) {
         super(context);
@@ -38,12 +42,39 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
         //create objects
         level = new PlayField(dimensions);
-        user = new Player(new Rect(0,0,10,10));
+        user = new Player(new Rect(0,0,100,100));
 
         //create thread
         thread = new MainThread(getHolder(), this);
 
+        //temp object
+        OBJ = new Rect( Constants.SCREEN_WIDTH/2-250,Constants.SCREEN_HEIGHT/2-250,Constants.SCREEN_WIDTH/2+250, Constants.SCREEN_HEIGHT+500);
+
         setFocusable(true);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        int x = (int)event.getX();
+        int y = (int)event.getY();
+        switch (event.getAction()) {
+            //on tap, begin timer
+            case MotionEvent.ACTION_DOWN:
+                touchMs = System.currentTimeMillis();
+                break;
+            //on release, jump player, set final x destination
+            case MotionEvent.ACTION_UP:
+                releaseMs = System.currentTimeMillis();
+                user.move(x);
+                if((releaseMs - touchMs) < 200)
+                    user.jump();
+                break;
+            //on drag, move player
+            case MotionEvent.ACTION_MOVE:
+                user.move(x);
+                break;
+        }
+        return true;
     }
 
     @Override
@@ -74,9 +105,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     //updates the game logic
-    public void update() {
-        user.update();
+    public void update(float deltaT) {
+        //update the player, keep track of time passed
+        user.collides(OBJ);
+        user.update(deltaT);
     }
+
 
     //draws the scenery
     @Override
@@ -85,7 +119,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
         //set the scenery
         level.draw(canvas);
+        //render the player
         user.draw(canvas);
 
+        canvas.drawRect(OBJ, new Paint(Color.BLUE));
     }
 }
