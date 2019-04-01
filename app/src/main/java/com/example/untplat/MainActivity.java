@@ -7,6 +7,8 @@ import android.util.DisplayMetrics;
 import android.view.Window;
 import android.view.WindowManager;
 
+//SETS UP UI HIDING
+//STARTS GAMEVIEW INSTANCE
 public class MainActivity extends Activity {
 
     @Override
@@ -18,9 +20,13 @@ public class MainActivity extends Activity {
         //Get necessary constants, fill constants variables
         DisplayMetrics dm = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(dm);
+        //get screen width
         Constants.SCREEN_WIDTH = dm.widthPixels;
-        Constants.SCREEN_HEIGHT = dm.heightPixels;
-
+        //get screen height without action or notification bar
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            Constants.SCREEN_HEIGHT = dm.heightPixels + 2*getResources().getDimensionPixelSize(resourceId);
+        }
         setContentView(new GameView(this));
 
     }

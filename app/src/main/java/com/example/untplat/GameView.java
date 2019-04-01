@@ -2,28 +2,29 @@ package com.example.untplat;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+//CONTAINS ALL ELEMENTS OF GAME
+//LISTENS FOR TOUCH
+//MANAGES UPDATE AND DRAW PRIORITIES
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     //thread which will run the game
     private MainThread thread;
-    //point through which phone dimensions will be fed to constants class
-    private Point dimensions;
     //the level upon which the player will act
     private PlayField level;
     //the player
     private Player user;
     //to discern touch time
     private long touchMs, releaseMs;
-    //temporary rect to make collisions
-    private Rect OBJ;
+    //game status, provide access to menu
+    private boolean paused;
+    private Menu menu;
+    //game over
+    private boolean gameOver;
 
     public GameView (Context context) {
         super(context);
@@ -33,43 +34,47 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         //pass relevant context to constants class
         Constants.CURRENT_CONTEXT = context;
 
-        //record dimensions
-        dimensions = new Point();
-        dimensions.y = Constants.SCREEN_HEIGHT;
-        dimensions.x = Constants.SCREEN_WIDTH;
-
         //create objects
-        level = new PlayField(dimensions);
-        user = new Player(new Rect(0,0,100,100));
+        level = new PlayField();
+        user = new Player();
 
         //create thread
         thread = new MainThread(getHolder(), this);
 
-        //temp object
-        OBJ = new Rect( Constants.SCREEN_WIDTH/2-250,Constants.SCREEN_HEIGHT/2-250,Constants.SCREEN_WIDTH/2+250, Constants.SCREEN_HEIGHT+500);
+        //create menu
+        menu = new Menu();
+        paused = false;
 
         setFocusable(true);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        int x = (int)event.getX();
-        int y = (int)event.getY();
+        Point action = new Point((int)event.getX(), (int)event.getY());
         switch (event.getAction()) {
             //on tap, begin timer
             case MotionEvent.ACTION_DOWN:
-                touchMs = System.currentTimeMillis();
+                //if they tap the corner, pause it
+                if(menu.paused(action))
+                    paused = true;
+                else {
+                    touchMs = System.currentTimeMillis();
+                    paused = false;
+                }
                 break;
             //on release, jump player, set final x destination
             case MotionEvent.ACTION_UP:
-                releaseMs = System.currentTimeMillis();
-                user.move(x);
-                if((releaseMs - touchMs) < 200)
-                    user.jump();
+                if(!paused) {
+                    releaseMs = System.currentTimeMillis();
+                    user.move(action.x);
+                    if ((releaseMs - touchMs) < 200)
+                        user.jump();
+                }
                 break;
             //on drag, move player
             case MotionEvent.ACTION_MOVE:
-                user.move(x);
+                if(!paused)
+                    user.move(action.x);
                 break;
         }
         return true;
@@ -105,8 +110,19 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     //updates the game logic
     public void update(float deltaT) {
         //update the player, keep track of time passed
-        user.collides(OBJ);
-        user.update(deltaT);
+        //user.collides(OBJ);
+        gameOver = level.getFull();
+        if(!paused && !gameOver) {
+            user.update(deltaT);
+            level.collision(user);
+            level.update();
+        }
+        //if game ends
+        if(gameOver) {
+            level.empty();
+            paused = true;
+        }
+
     }
 
 
@@ -117,9 +133,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
         //set the scenery
         level.draw(canvas);
+
         //render the player
         user.draw(canvas);
 
-        canvas.drawRect(OBJ, new Paint(Color.BLUE));
+        //if paused draw the menu, else draw the pause button
+        if(paused)
+            menu.drawMenu(canvas);
+        else
+            menu.drawRes(canvas);
     }
 }

@@ -4,8 +4,7 @@ import android.graphics.Canvas;
 import android.util.Log;
 import android.view.SurfaceHolder;
 
-import java.util.concurrent.TimeUnit;
-
+//A THREAD CLASS TO BE USED FOR RUNNING SYNCHRONIZED GAME LOOP
 public class MainThread extends Thread {
     //game surfaceholder
     private SurfaceHolder surfaceHolder;
@@ -43,7 +42,6 @@ public class MainThread extends Thread {
             float deltaT = (gameTime - lastUpdateTime)/10f;
 
             //debug
-            Log.d("delta", "deltaT: " + deltaT);
             lastUpdateTime = gameTime;
 
             //cap render time

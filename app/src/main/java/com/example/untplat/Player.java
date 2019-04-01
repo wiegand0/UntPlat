@@ -1,5 +1,7 @@
 package com.example.untplat;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -7,6 +9,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.util.Log;
 
+//THE ENTITY CONTROLLED BY THE PLAYER
 public class Player {
 
     //where the player is located on the screen
@@ -23,25 +26,39 @@ public class Player {
     private Paint paint;
     //horizontal target
     private int target;
-    //for collision detection
-    private boolean collTop;
-    private boolean collBottom;
-    private boolean collHorz;
+    //for sizing the player
+    private int dimension;
+    //how many jumps is the player doing
+    private int jumps;
+    //player image
+    private Bitmap player;
+    //last obstacle player collided with
+    private Obstacle touching;
+    private boolean touched;
 
 
-    public Player (Rect rect) {
-        this.rect = rect;
-        paint = new Paint(Color.RED);
-        location = new Point(((Constants.SCREEN_WIDTH/2)-50),0);
+    public Player () {
+        jumps = 0;
+        dimension = Constants.SCREEN_HEIGHT/20;
+        rect = new Rect(0,0,dimension,dimension);
+        paint = new Paint();
+        location = new Point(((Constants.SCREEN_WIDTH/2)-dimension/2),0);
         gravity = Constants.SCREEN_HEIGHT/40f;
         target = location.x;
         vely = 0;
         velx = 0;
+        Point temp = new Point(0,0);
+        touching = new Obstacle(temp,0,0);
+        touched = false;
+
+        BitmapFactory bf = new BitmapFactory();
+        player = bf.decodeResource(Constants.CURRENT_CONTEXT.getResources(), R.drawable.player_idle);
+        player.createScaledBitmap(player, dimension, dimension,true);
     }
 
     //interpolate from velocity to goal by steps deltav
     private float interp(float goal, float vel, float deltav) {
-        float difference = goal - vel;        Log.d("pol", "diff: " + difference + " vel: " + vel + " goal: " + goal);
+        float difference = goal - vel;
         if(difference > deltav)
             return vel + deltav;
         if(difference < -deltav)
@@ -50,7 +67,11 @@ public class Player {
     }
 
     public void draw(Canvas canvas) {
-        canvas.drawRect(location.x,location.y,location.x + rect.right,location.y + rect.bottom, paint);
+        paint.setStyle(Paint.Style.FILL);
+        //paint.setColor(Color.rgb(255,255,255));
+
+        rect = new Rect(location.x, location.y, location.x + dimension, location.y + dimension);
+        canvas.drawBitmap(player, null, rect, paint);
     }
 
     public void update(float deltaT) {
@@ -80,83 +101,115 @@ public class Player {
             location.x += velx;
 
         //-------//vertical//-------//
-        //if colliding stop vertical movement
-        if(collTop) {
-            vely = 0;
-            goaly = 0;
-        }
+
 
         //vertical interpolation
+        //adjusts velocity toward goaly
         vely = interp(goaly, vely, 6f);
         if(vely == goaly) {
             goaly = 0;
         }
         //gravity
         //player is below bounds
-        if(location.y > Constants.SCREEN_HEIGHT + 50) {
-            location.y = Constants.SCREEN_HEIGHT + 50;
+        if(location.y > Constants.SCREEN_HEIGHT - dimension) {
+            //scoot them back up
+            location.y = Constants.SCREEN_HEIGHT - dimension;
+            //restore jumps
+            jumps = 0;
         }
-        //player is in bounds and is not jumping or colliding
-        else if(location.y < Constants.SCREEN_HEIGHT + 50 && goaly == 0 && collBottom == false){
-            Log.d("moving", "g: " + Math.round(gravity*deltaT) + " v: " + Math.round(vely*deltaT));
-            location.y += gravity + vely;
+        //player is in bounds and is not jumping
+        else if(location.y < Constants.SCREEN_HEIGHT - dimension && goaly == 0){
+            //location gets greater by current velocity plus gravity
+            location.y += gravity/2 + vely;
         }
-        //player is on ground
+        //player is on ground or jumping
         else {
             location.y += vely;
         }
-        Log.d("pos", "( " + location.x + ", " + location.y + " )");
-
-
     }
 
     //to be called on jump
     public void jump () {
-        goaly = -Constants.SCREEN_HEIGHT/25f;
+        if(jumps < 2) {
+            goaly += -Constants.SCREEN_HEIGHT / 30f;
+            jumps++;
+        }
     }
 
     public void move(int target) {
         this.target = target;
+        //set goalx to movement speed, allow player to stat adjust?
+        //maybe if target is far dash? -- attach to power moves
         if(location.x < target)
             goalx = Constants.SCREEN_WIDTH/30f;
         else if(location.x > target)
             goalx = -Constants.SCREEN_WIDTH/30f;
     }
 
-    public void collides(Rect obj) {
-        boolean intHor = !(location.x > obj.right || location.x + rect.right < obj.left);
+    public Point getLocation() { return location; }
 
-        //detect horizontal collision, only occurs between upper and lower bounds of object
-        if(intHor && location.y + rect.bottom < obj.bottom && location.y > obj.top) {
-            collHorz = true;
-            //detect left or right collision
-            //then prevent movement in that direction
-            if(location.x <= obj.left) {
-                if(goalx > 0)
-                    goalx = 0;
-                location.x = obj.left - rect.right;
-            } else if(location.x >= obj.left) {
-                if(goalx < 0)
-                    goalx = 0;
-                location.x = obj.right;
+    public void collides(Obstacle with) {
+        //collides on what side
+
+        Rect obj = with.getRect();
+
+        //how far over does location.x go
+        float overX = location.x - (obj.left - dimension);
+        //same with location.y
+        float overY = location.y - (obj.top - dimension);
+        //would be width and height, but with square objects they are the same
+        int combinedWidth = with.getWidth() + dimension;
+        int combinedHeight = with.getHeight() + dimension;
+
+        //are they both overlapping?
+        boolean overlapx = (overX > 0 && overX < combinedWidth);
+        boolean overlapy = (overY > 0 && overY < combinedHeight);
+
+
+
+        //if they're both overlapping, you're colliding
+        if(overlapx && overlapy) {
+            touching = with;
+            touched = true;
+            jumps = 0;
+            //percentage wise, easier to tell when to flip
+            float percentX = overX / combinedWidth;
+            float percentY = overY / combinedHeight;
+            //if we're talking about right or bottom side, flip percentages
+            if(percentX > .5)
+                percentX = (combinedWidth - overX) / combinedWidth;
+            if(percentY > .5)
+                percentY = (combinedHeight - overY) / combinedHeight;
+            //deal with side of least interference
+            if(percentX < percentY) {
+                //go left
+                if(overX < combinedWidth/2) {
+                    velx = 0;
+                    location.x = obj.left - dimension;
+                //was the percentage flipped?
+                //go right
+                } else {
+                    velx = 0;
+                    location.x = obj.right;
+                }
+            } else if (percentY < percentX) {
+                //go up
+                if(overY <= combinedHeight/2) {
+                    //if it's falling, slow our player to match
+                    if(!with.getStatus())
+                        vely = with.getVel();
+                    location.y = obj.top - dimension;
+                //was the percentage flipped?
+                //go down
+                } else {
+                    goaly = 0;
+                    location.y = obj.bottom;
+                }
             }
         }
-        else
-            collHorz = false;
-
-        //detect vertical collision, only occurs in left and right bounds, but not when colliding horizontally
-        if(location.y <= obj.bottom && location.y >= obj.top && intHor && !collHorz) {
-            collTop = true;
-            location.y = obj.bottom;
+        else {
+            touched = false;
         }
-        else
-            collTop = false;
-        //same idea as top collision, but with the bottom
-        if(location.y + rect.bottom >= obj.top && location.y + rect.bottom <= obj.bottom && intHor && !collHorz) {
-            collBottom = true;
-            location.y = obj.top - rect.bottom;
-        }
-        else
-            collBottom = false;
     }
+
 }
