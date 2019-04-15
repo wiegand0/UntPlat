@@ -3,12 +3,17 @@ package com.example.untplat;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
+
+import static com.example.untplat.MainThread.canvas;
 
 //this class is intended to hold all of the objects which the player can interact with
 public class PlayField {
@@ -24,24 +29,28 @@ public class PlayField {
     //max obstacles that can fit on screen
     private int max;
     //should the objects be spawning
-    boolean generating;
+    private boolean generating;
     private int deltaT;
+    private boolean gameOver;
 
     public PlayField() {
         //set the background
         thePit = new Pit();
         BitmapFactory bf = new BitmapFactory();
-        background = bf.decodeResource(Constants.CURRENT_CONTEXT.getResources(), R.drawable.background);
-        background.createScaledBitmap(background, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT, true);
+        //background = bf.decodeResource(Constants.CURRENT_CONTEXT.getResources(), R.drawable.background);
+        //background.createScaledBitmap(background, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT, true);
         //size the array on worst case scenario
         max = 5 * (Constants.SCREEN_HEIGHT/(Constants.SCREEN_WIDTH/5));
         debris = new ArrayList<>();
         step = 0;
+        gameOver = false;
+        generating = true;
     }
 
     //update
     public void update() {
 
+        Log.d("PlayField update", "generating: " + generating);
         //update every non-collided existing block
         ListIterator<Obstacle> obstacles = debris.listIterator();
         while (obstacles.hasNext()) {
@@ -52,8 +61,11 @@ public class PlayField {
                     debris.get(i).lowerMax(Constants.SCREEN_HEIGHT / 6);
                     generating = false;
             }
+            //this makes it generate non stop
+            else
+                generating = true;
             //check every block for collision
-            for (int i = 0; i < obstacles.previousIndex(); i++) {
+            for (int i = 0; i <= obstacles.previousIndex(); i++) {
                 if (!current.getStatus())
                     current.colliding(debris.get(i));
             }
@@ -80,9 +92,29 @@ public class PlayField {
         }
     }
 
+    //if we're not generating what are we doing
+    private void nogen(Player player) {
+        switch (player.getstatus()) {
+            case 0:
+                break;
+            case 1:
+                break;
+            case 2:
+                gameOver = true;
+                empty();
+                break;
+        }
+    }
 
     //draw
     public void draw(Canvas canvas) {
+
+        Paint paint = new Paint();
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(Color.rgb(110,110,110));
+
+        canvas.drawRect(0,0,Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT, paint);
+        
         ListIterator<Obstacle> todraw = debris.listIterator();
         while(todraw.hasNext()) {
             Obstacle current = todraw.next();
@@ -99,25 +131,29 @@ public class PlayField {
         allDebris.addAll(debris);
         allDebris.addAll(thePit.getWalls());
         ListIterator<Obstacle> obstacles = allDebris.listIterator();
+        player.collisionReset();
         while (obstacles.hasNext()) {
             Obstacle current = obstacles.next();
             player.collides(current);
         }
-        //check if player collides with walls
-        /*ListIterator<Obstacle> walls = thePit.getWalls().listIterator();
-        while(walls.hasNext()) {
-            Obstacle current = walls.next();
-            player.collides(current);
-        }*/
-        if(player.getLocation().y < 300)
-            generating = true;
+        //if the collision kills the player
+        if(player.getstatus() == 2)
+            generating = false;
+        //if we're not updating, why is that
+        if(generating == false)
+            nogen(player);
+        Log.d("Player collision", "status " + player.getstatus());
     }
 
     public boolean getFull() {
         return(debris.size() == max);
     }
 
+    public boolean getGame() { return gameOver; }
+
     public void empty() {
         debris.clear();
     }
+
+    public void newGame() { gameOver = false; generating = true;}
 }

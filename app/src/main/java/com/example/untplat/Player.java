@@ -12,6 +12,8 @@ import android.util.Log;
 //THE ENTITY CONTROLLED BY THE PLAYER
 public class Player {
 
+    //status 0 for falling, 1 for stationary, 2 for dead
+    private int status;
     //where the player is located on the screen
     private Point location;
     //velocity
@@ -32,14 +34,14 @@ public class Player {
     private int jumps;
     //player image
     private Bitmap player;
-    //last obstacle player collided with
-    private Obstacle touching;
-    private boolean touched;
-
+    //what is colliding, reset every update
+    private boolean bottomColl;
+    private boolean topColl;
+    private boolean sideColl;
 
     public Player () {
         jumps = 0;
-        dimension = Constants.SCREEN_HEIGHT/20;
+        dimension = Constants.SCREEN_HEIGHT/17;
         rect = new Rect(0,0,dimension,dimension);
         paint = new Paint();
         location = new Point(((Constants.SCREEN_WIDTH/2)-dimension/2),0);
@@ -47,9 +49,10 @@ public class Player {
         target = location.x;
         vely = 0;
         velx = 0;
-        Point temp = new Point(0,0);
-        touching = new Obstacle(temp,0,0);
-        touched = false;
+        topColl = false;
+        bottomColl = false;
+        sideColl = false;
+        status = 0;
 
         BitmapFactory bf = new BitmapFactory();
         player = bf.decodeResource(Constants.CURRENT_CONTEXT.getResources(), R.drawable.player_idle);
@@ -74,7 +77,23 @@ public class Player {
         canvas.drawBitmap(player, null, rect, paint);
     }
 
+    //what to do on starting a new game
+    public void newGameUpdate() {
+        //fall until hitting ground
+        location.y += gravity/2 + vely;
+        //player hits ground
+        if(location.y > Constants.SCREEN_HEIGHT - dimension) {
+            //scoot them back up
+            location.y = Constants.SCREEN_HEIGHT - dimension;
+            //restore game status
+            status = 0;
+        }
+    }
+
     public void update(float deltaT) {
+        //what is the player's status
+        if(topColl && bottomColl)
+            status = 2;
         //-------//horizontal//-------//
         //prevent sliding
         if(velx > 0 && goalx < 0)
@@ -162,16 +181,12 @@ public class Player {
         int combinedHeight = with.getHeight() + dimension;
 
         //are they both overlapping?
-        boolean overlapx = (overX > 0 && overX < combinedWidth);
-        boolean overlapy = (overY > 0 && overY < combinedHeight);
+        boolean overlapx = (overX > .5 && overX < combinedWidth);
+        boolean overlapy = (overY > .5 && overY < combinedHeight);
 
-
-
+        Log.d("PlayerCollision", "overlap: (" + overlapx + ", " + overlapy + ")");
         //if they're both overlapping, you're colliding
         if(overlapx && overlapy) {
-            touching = with;
-            touched = true;
-            jumps = 0;
             //percentage wise, easier to tell when to flip
             float percentX = overX / combinedWidth;
             float percentY = overY / combinedHeight;
@@ -182,19 +197,20 @@ public class Player {
                 percentY = (combinedHeight - overY) / combinedHeight;
             //deal with side of least interference
             if(percentX < percentY) {
+                sideColl = true;
                 //go left
-                if(overX < combinedWidth/2) {
-                    velx = 0;
+                if(overX < combinedWidth/5) {
                     location.x = obj.left - dimension;
                 //was the percentage flipped?
                 //go right
                 } else {
-                    velx = 0;
                     location.x = obj.right;
                 }
             } else if (percentY < percentX) {
                 //go up
-                if(overY <= combinedHeight/2) {
+                if(overY <= combinedHeight/5) {
+                    bottomColl = true;
+                    jumps = 0;
                     //if it's falling, slow our player to match
                     if(!with.getStatus())
                         vely = with.getVel();
@@ -202,14 +218,20 @@ public class Player {
                 //was the percentage flipped?
                 //go down
                 } else {
+                    topColl = true;
                     goaly = 0;
                     location.y = obj.bottom;
                 }
             }
         }
-        else {
-            touched = false;
-        }
+    }
+
+    public int getstatus() { return status; }
+
+    public void collisionReset() {
+        bottomColl = false;
+        topColl = false;
+        sideColl = false;
     }
 
 }

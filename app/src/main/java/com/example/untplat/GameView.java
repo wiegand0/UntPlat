@@ -111,18 +111,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     public void update(float deltaT) {
         //update the player, keep track of time passed
         //user.collides(OBJ);
-        gameOver = level.getFull();
+        gameOver = level.getGame();
         if(!paused && !gameOver) {
             user.update(deltaT);
             level.collision(user);
             level.update();
         }
         //if game ends
-        if(gameOver) {
-            level.empty();
-            paused = true;
+        //retrace level
+        //drop player
+        if(gameOver && !paused) {
+            user.newGameUpdate();
+            if(user.getstatus() == 0)
+                level.newGame();
         }
-
     }
 
 
