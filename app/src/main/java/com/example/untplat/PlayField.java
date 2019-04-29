@@ -149,6 +149,14 @@ public class PlayField {
         return(debris.size() == max);
     }
 
+    public void setObstacleSpeed(float to) {
+        ListIterator<Obstacle> obstacles = debris.listIterator();
+        while(obstacles.hasNext()) {
+            Obstacle current = obstacles.next();
+            current.setGravity(to);
+        }
+    }
+
     public boolean getGame() { return gameOver; }
 
     public void empty() {

@@ -20,8 +20,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private Player user;
     //to discern touch time
     private long touchMs, releaseMs;
-    //game status, provide access to menu
-    private boolean paused;
+    //menu, contains all the preferences
     private Menu menu;
     //game over
     private boolean gameOver;
@@ -43,7 +42,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
         //create menu
         menu = new Menu();
-        paused = false;
 
         setFocusable(true);
     }
@@ -54,17 +52,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         switch (event.getAction()) {
             //on tap, begin timer
             case MotionEvent.ACTION_DOWN:
-                //if they tap the corner, pause it
-                if(menu.paused(action))
-                    paused = true;
-                else {
-                    touchMs = System.currentTimeMillis();
-                    paused = false;
-                }
+                //test the menu for interactions
+                menu.interact(action);
+                //if the game isn't paused time the interaction for jumping
+                touchMs = System.currentTimeMillis();
                 break;
             //on release, jump player, set final x destination
             case MotionEvent.ACTION_UP:
-                if(!paused) {
+                //only move and jump if the game isn't paused
+                if(!menu.getPaused()) {
                     releaseMs = System.currentTimeMillis();
                     user.move(action.x);
                     if ((releaseMs - touchMs) < 200)
@@ -73,8 +69,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                 break;
             //on drag, move player
             case MotionEvent.ACTION_MOVE:
-                if(!paused)
+                //if it's not paused move the player
+                long holding = System.currentTimeMillis();
+                if(!menu.getPaused())
                     user.move(action.x);
+                else if(menu.getPaused() && (holding - touchMs) > 200)
+                    menu.interact(action);
                 break;
         }
         return true;
@@ -112,7 +112,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         //update the player, keep track of time passed
         //user.collides(OBJ);
         gameOver = level.getGame();
-        if(!paused && !gameOver) {
+        if(!menu.getPaused() && !gameOver) {
             user.update(deltaT);
             level.collision(user);
             level.update();
@@ -120,11 +120,23 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         //if game ends
         //retrace level
         //drop player
-        if(gameOver && !paused) {
+        if(gameOver && !menu.getPaused()) {
             user.newGameUpdate();
             if(user.getstatus() == 0)
                 level.newGame();
         }
+        //if the game is being reset
+        //kill the player
+        //unpause
+        //falsify reset value
+        if(menu.getReset()) {
+            user.kill();
+            menu.setReset();
+            menu.setPaused();
+        }
+        //if it's paused, update game values
+        level.setObstacleSpeed(menu.getSpeed());
+
     }
 
 
@@ -139,10 +151,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         //render the player
         user.draw(canvas);
 
-        //if paused draw the menu, else draw the pause button
-        if(paused)
-            menu.drawMenu(canvas);
-        else
-            menu.drawRes(canvas);
+        //draw the menu
+        menu.drawMenu(canvas);
     }
 }

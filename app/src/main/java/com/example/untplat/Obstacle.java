@@ -39,7 +39,7 @@ public class Obstacle {
         location = new Point(temp, -height);
         paint = new Paint(Color.BLUE);
         maxy = Constants.SCREEN_HEIGHT - height;
-        gravity = Constants.SCREEN_HEIGHT/200f;
+        gravity = 0;
         collided = false;
     }
 
@@ -137,5 +137,9 @@ public class Obstacle {
         paint.setStrokeWidth(3);
 
         canvas.drawRect(location.x,location.y,location.x + width,location.y + height, paint);
+    }
+
+    public void setGravity(float to) {
+        gravity = to * Constants.SCREEN_HEIGHT/100f;
     }
 }

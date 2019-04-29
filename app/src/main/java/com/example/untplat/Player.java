@@ -80,7 +80,7 @@ public class Player {
     //what to do on starting a new game
     public void newGameUpdate() {
         //fall until hitting ground
-        location.y += gravity/2 + vely;
+        location.y += gravity/2;
         //player hits ground
         if(location.y > Constants.SCREEN_HEIGHT - dimension) {
             //scoot them back up
@@ -133,8 +133,11 @@ public class Player {
         if(location.y > Constants.SCREEN_HEIGHT - dimension) {
             //scoot them back up
             location.y = Constants.SCREEN_HEIGHT - dimension;
+            if(goaly > 0)
+                goaly = 0;
             //restore jumps
-            jumps = 0;
+            if(goaly == 0)
+                jumps = 0;
         }
         //player is in bounds and is not jumping
         else if(location.y < Constants.SCREEN_HEIGHT - dimension && goaly == 0){
@@ -176,36 +179,46 @@ public class Player {
         float overX = location.x - (obj.left - dimension);
         //same with location.y
         float overY = location.y - (obj.top - dimension);
-        //would be width and height, but with square objects they are the same
+
         int combinedWidth = with.getWidth() + dimension;
         int combinedHeight = with.getHeight() + dimension;
 
-        //are they both overlapping?
-        boolean overlapx = (overX > .5 && overX < combinedWidth);
-        boolean overlapy = (overY > .5 && overY < combinedHeight);
+        //percentage wise, easier to tell when to flip
+        float percentX = overX / combinedWidth;
+        float percentY = overY / combinedHeight;
+        //if we're talking about right or bottom side, flip percentages
+        if(percentX > .5)
+            percentX = (combinedWidth - overX) / combinedWidth;
+        if(percentY > .5)
+            percentY = (combinedHeight - overY) / combinedHeight;
 
-        Log.d("PlayerCollision", "overlap: (" + overlapx + ", " + overlapy + ")");
+        //are they both overlapping?
+        /*
+        boolean overlapx = (overX > 0 && overX < combinedWidth);
+        boolean overlapy = (overY > 0 && overY < combinedHeight);
+        */
+        boolean overlapx = (percentX > 0 && percentX < 1);
+        boolean overlapy = (percentY > 0 && percentY < 1);
+
+        Log.d("PlayerCollision", "overlap: (" + overlapx + ", " + overlapy + ") By: " + "( " + overX + ", " + overY + ")" );
         //if they're both overlapping, you're colliding
         if(overlapx && overlapy) {
-            //percentage wise, easier to tell when to flip
-            float percentX = overX / combinedWidth;
-            float percentY = overY / combinedHeight;
-            //if we're talking about right or bottom side, flip percentages
-            if(percentX > .5)
-                percentX = (combinedWidth - overX) / combinedWidth;
-            if(percentY > .5)
-                percentY = (combinedHeight - overY) / combinedHeight;
             //deal with side of least interference
             if(percentX < percentY) {
                 sideColl = true;
                 //go left
                 if(overX < combinedWidth/5) {
+                    if(velx > 0)
+                        velx = 0;
                     location.x = obj.left - dimension;
                 //was the percentage flipped?
                 //go right
                 } else {
                     location.x = obj.right;
+                    if(velx < 0)
+                        velx = 0;
                 }
+                goalx = 0;
             } else if (percentY < percentX) {
                 //go up
                 if(overY <= combinedHeight/5) {
@@ -214,6 +227,8 @@ public class Player {
                     //if it's falling, slow our player to match
                     if(!with.getStatus())
                         vely = with.getVel();
+                    else if(with.getStatus() && vely > 0)
+                        vely = 0;
                     location.y = obj.top - dimension;
                 //was the percentage flipped?
                 //go down
@@ -221,6 +236,8 @@ public class Player {
                     topColl = true;
                     goaly = 0;
                     location.y = obj.bottom;
+                    if(vely < 0)
+                        vely = 0;
                 }
             }
         }
@@ -234,4 +251,5 @@ public class Player {
         sideColl = false;
     }
 
+    public void kill() { status = 2; }
 }
